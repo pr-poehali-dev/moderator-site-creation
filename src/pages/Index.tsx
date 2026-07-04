@@ -17,6 +17,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { useToast } from '@/hooks/use-toast';
+
+const SEND_URL = 'https://functions.poehali.dev/bea4705c-ac2b-4c20-a498-57d36d11a503';
 
 const HERO_IMG =
   'https://cdn.poehali.dev/projects/b1668813-1857-4a26-adc0-91400263c258/files/31b4d3e5-2a1b-4790-bb9c-eee9af70e675.jpg';
@@ -38,11 +41,49 @@ const FAQ = [
 ];
 
 const Index = () => {
+  const { toast } = useToast();
   const [status, setStatus] = useState('');
   const [checked, setChecked] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [form, setForm] = useState({
+    nickname: '',
+    age: '',
+    email: '',
+    phone: '',
+    server: '',
+    online: '',
+    experience: '',
+    motivation: '',
+  });
+
+  const upd = (key: string, value: string) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
 
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.nickname.trim() || !form.email.trim()) {
+      toast({ title: 'Заполни ник и email', variant: 'destructive' });
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await fetch(SEND_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error();
+      toast({ title: 'Заявка отправлена!', description: 'Мы свяжемся с тобой по email или SMS.' });
+      setForm({ nickname: '', age: '', email: '', phone: '', server: '', online: '', experience: '', motivation: '' });
+    } catch {
+      toast({ title: 'Не удалось отправить', description: 'Попробуй ещё раз позже.', variant: 'destructive' });
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleCheck = () => {
@@ -146,63 +187,63 @@ const Index = () => {
               <p className="text-muted-foreground mt-4">Заполни все поля. Ответ придёт на email и по SMS.</p>
             </div>
 
-            <form className="glass border border-border rounded-3xl p-6 sm:p-9 space-y-5" onSubmit={(e) => e.preventDefault()}>
+            <form className="glass border border-border rounded-3xl p-6 sm:p-9 space-y-5" onSubmit={handleSubmit}>
               <div className="grid sm:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <Label>Игровой ник</Label>
-                  <Input placeholder="Ivan_Petrov" />
+                  <Input placeholder="Ivan_Petrov" value={form.nickname} onChange={(e) => upd('nickname', e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>Возраст</Label>
-                  <Input type="number" placeholder="18" />
+                  <Input type="number" placeholder="18" value={form.age} onChange={(e) => upd('age', e.target.value)} />
                 </div>
               </div>
               <div className="grid sm:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <Label>Email</Label>
-                  <Input type="email" placeholder="you@mail.ru" />
+                  <Input type="email" placeholder="you@mail.ru" value={form.email} onChange={(e) => upd('email', e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>Телефон (для SMS)</Label>
-                  <Input type="tel" placeholder="+7 900 000-00-00" />
+                  <Input type="tel" placeholder="+7 900 000-00-00" value={form.phone} onChange={(e) => upd('phone', e.target.value)} />
                 </div>
               </div>
               <div className="grid sm:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <Label>Сервер</Label>
-                  <Select>
+                  <Select value={form.server} onValueChange={(v) => upd('server', v)}>
                     <SelectTrigger><SelectValue placeholder="Выбери сервер" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1">Detroit</SelectItem>
-                      <SelectItem value="2">Michigan</SelectItem>
-                      <SelectItem value="3">Chicago</SelectItem>
-                      <SelectItem value="4">Vermont</SelectItem>
+                      <SelectItem value="Detroit">Detroit</SelectItem>
+                      <SelectItem value="Michigan">Michigan</SelectItem>
+                      <SelectItem value="Chicago">Chicago</SelectItem>
+                      <SelectItem value="Vermont">Vermont</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Онлайн в день</Label>
-                  <Select>
+                  <Select value={form.online} onValueChange={(v) => upd('online', v)}>
                     <SelectTrigger><SelectValue placeholder="Часов в день" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="2-4">2–4 часа</SelectItem>
-                      <SelectItem value="4-6">4–6 часов</SelectItem>
-                      <SelectItem value="6+">6+ часов</SelectItem>
+                      <SelectItem value="2–4 часа">2–4 часа</SelectItem>
+                      <SelectItem value="4–6 часов">4–6 часов</SelectItem>
+                      <SelectItem value="6+ часов">6+ часов</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Опыт модерации</Label>
-                <Textarea rows={3} placeholder="Расскажи, где и как модерировал ранее" />
+                <Textarea rows={3} placeholder="Расскажи, где и как модерировал ранее" value={form.experience} onChange={(e) => upd('experience', e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label>Почему именно ты?</Label>
-                <Textarea rows={3} placeholder="Мотивация и сильные стороны" />
+                <Textarea rows={3} placeholder="Мотивация и сильные стороны" value={form.motivation} onChange={(e) => upd('motivation', e.target.value)} />
               </div>
-              <Button type="submit" size="lg" className="w-full font-display uppercase tracking-wider text-base h-13">
-                <Icon name="Send" size={18} />
-                Отправить анкету
+              <Button type="submit" size="lg" disabled={sending} className="w-full font-display uppercase tracking-wider text-base h-13">
+                <Icon name={sending ? 'Loader' : 'Send'} size={18} className={sending ? 'animate-spin' : ''} />
+                {sending ? 'Отправка...' : 'Отправить анкету'}
               </Button>
               <p className="text-xs text-muted-foreground text-center">
                 Нажимая кнопку, ты соглашаешься на обработку данных и получение уведомлений на email и телефон.
