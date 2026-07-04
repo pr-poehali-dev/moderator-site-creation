@@ -1,15 +1,15 @@
 import json
 import os
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import urllib.request
+import urllib.error
 
 RECIPIENT = 'standoff2ggq482@gmail.com'
+SENDER = 'Black Russia <onboarding@resend.dev>'
 
 
 def handler(event: dict, context) -> dict:
     '''
-    Принимает анкету модератора и отправляет её на email администратора.
+    Принимает анкету модератора и отправляет её на email администратора через Resend.
     Args: event - dict с httpMethod, body (JSON с полями анкеты)
           context - объект с request_id
     Returns: HTTP-ответ с результатом отправки
@@ -53,10 +53,9 @@ def handler(event: dict, context) -> dict:
             'body': json.dumps({'error': 'Укажите ник и email'}, ensure_ascii=False),
         }
 
-    smtp_user = os.environ.get('SMTP_USER')
-    smtp_password = os.environ.get('SMTP_PASSWORD')
+    api_key = os.environ.get('RESEND_API_KEY')
 
-    if not smtp_user or not smtp_password:
+    if not api_key:
         return {
             'statusCode': 500,
             'headers': {'Access-Control-Allow-Origin': '*'},
@@ -77,16 +76,34 @@ def handler(event: dict, context) -> dict:
     </table>
     '''
 
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = f'Заявка модератора: {nickname}'
-    msg['From'] = smtp_user
-    msg['To'] = RECIPIENT
-    msg['Reply-To'] = email
-    msg.attach(MIMEText(html, 'html', 'utf-8'))
+    payload = json.dumps({
+        'from': SENDER,
+        'to': [RECIPIENT],
+        'reply_to': email,
+        'subject': f'Заявка модератора: {nickname}',
+        'html': html,
+    }).encode('utf-8')
 
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server_conn:
-        server_conn.login(smtp_user, smtp_password)
-        server_conn.sendmail(smtp_user, [RECIPIENT], msg.as_string())
+    req = urllib.request.Request(
+        'https://api.resend.com/emails',
+        data=payload,
+        method='POST',
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+        },
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            resp.read()
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8', errors='ignore')
+        return {
+            'statusCode': 502,
+            'headers': {'Access-Control-Allow-Origin': '*'},
+            'body': json.dumps({'error': 'Не удалось отправить письмо', 'details': error_body}, ensure_ascii=False),
+        }
 
     return {
         'statusCode': 200,
